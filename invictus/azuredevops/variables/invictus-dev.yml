@@ -1,0 +1,49 @@
+variables:
+- name: Invictus.Environment.Name
+  value: 'development'
+- name: Invictus.Environment.Shortname
+  value: 'dev'
+- name: Invictus.EnvironmentPrefix
+  value: 'd'
+- name: Invictus.DevOps.ObjectId
+  value: '' # The Enterprise Application Object ID of the service principal thats connected to the DevOps service connection
+- name: serviceConnectionName
+  value: ''  # The name of the service connection in Azure DevOps, used to connect to Azure resources
+- name: poolName
+  value: 'Azure Pipelines' # The name of the agent pool in Azure DevOps, change if you use self-hosted agents
+
+- name: Invictus.Subscription.Id
+  value: '' # The subscription ID where the Invictus resources will be deployed
+
+- name: Invictus.Vnet.Subscription.Id
+  value: $(Invictus.Subscription.Id) # The subscription ID where the Invictus VNet is located (if any, usually the same as Invictus.Subscription.Id)
+- name: Invictus.Vnet.AddressSpace
+  value: '' # The address space for the Invictus VNet in CIDR notation (e.g. 10.0.0.0/24), change if you have a different setup
+- name: Invictus.Vnet.PrivateDnsZones.Subscription.Id
+  value: '$(Invictus.Vnet.Subscription.Id)' # The subscription ID where the Invictus Private DNS Zones are located (if any, usually the same as Invictus.Vnet.Subscription.Id)
+- name: Invictus.Vnet.PrivateDnsZones.ResourceGroup.Name
+  value: '$(Invictus.Vnet.ResourceGroup.Name)' # The resource group name where the Invictus Private DNS Zones are located (if any, usually the same as Invictus.Vnet.ResourceGroup.Name)
+
+- name: Invictus.LogWorkspace.ResourceId
+  value: '' # The resource ID of the Log Analytics Workspace, used for monitoring and logging
+
+# Managed Identity authentication for the Invictus Identity Provider
+- name: Invictus.IdentityProvider.ApplicationId
+  value: ''
+- name: Invictus.IdentityProvider.ClientSecret.SecretName
+  value: '' 
+
+# AAD settings for dashboard
+- name: Invictus.Dashboard.Aad.TenantId
+  value: ''
+- name: Invictus.Dashboard.Aad.ClientId
+  value: ''
+- name: Invictus.Dashboard.Aad.ClientSecret.SecretName
+  value: '' 
+- name: Invictus.Dashboard.Aad.Audience
+  value: ''
+
+- name: Invictus.Resources.CosmosDb.DataRetention.Days
+  value: 30
+- name: Invictus.Resources.CosmosDb.IsProvisioned
+  value: $false # false if serverless, true if provisioned throughput

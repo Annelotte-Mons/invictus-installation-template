@@ -1,0 +1,170 @@
+parameters:
+- name: Version
+  type: string
+- name: UseBeta
+  type: string
+- name: environments
+  type: object
+  default:
+  - name: dev
+    environmentName: DEV
+    displayName: Development
+  # - name: tst
+  #   displayName: Test
+  # - name: uat
+  #   displayName: Acceptance
+  # - name: prd
+  #   displayName: Production
+
+stages:
+- ${{ each env in parameters.environments }}:
+  - stage: Deploy_${{ env.name }}
+    displayName: 'Deploy to ${{ env.displayName }}'
+    variables:
+     - template: ../../../variables/invictus-${{ env.name }}.yml
+    pool:
+      name: ${{ variables.poolName }}
+    jobs:
+    - deployment: deploy_dashboard
+      displayName: 'Deploy Invictus Dashboard'
+      environment: ${{ variables.azureDevOpsEnvironment }}
+      strategy:
+        runOnce:
+          deploy:
+            steps:
+            - download: '_build'
+              displayName: Download Artifact
+
+            # Retrieve Keyvault secrets needed for installation
+            - task: AzureCLI@2
+              displayName: 'Retrieve KeyVault Secret: acrPassword'
+              env:
+                SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+              inputs:
+                azureSubscription: ${{ variables.serviceConnectionName }}
+                scriptType: 'pscore'
+                scriptLocation: 'scriptPath'
+                scriptPath: '$(Pipeline.Workspace)/_build/scripts/SetPipelineVariableFromKeyvaultSecret.ps1'        
+                ScriptArguments: >
+                  -keyVaultName "$(Invictus.Installation.KeyVault.Name)"
+                  -secretName "$(Invictus.Acr.Password.SecretName)"
+                  -pipelineVariableName "acrPassword"
+
+            - task: AzureCLI@2
+              displayName: 'Retrieve KeyVault Secret: Identity Provider Client Secret'
+              env:
+                SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+              inputs:
+                azureSubscription: ${{ variables.serviceConnectionName }}
+                scriptType: 'pscore'
+                scriptLocation: 'scriptPath'
+                scriptPath: '$(Pipeline.Workspace)/_build/scripts/SetPipelineVariableFromKeyvaultSecret.ps1'        
+                ScriptArguments: >
+                  -keyVaultName "$(Invictus.Installation.KeyVault.Name)"
+                  -secretName "$(Invictus.IdentityProvider.ClientSecret.SecretName)"
+                  -pipelineVariableName "identityProviderClientSecret"
+
+            - task: AzureCLI@2
+              displayName: 'Retrieve KeyVault Secret: AAD Client Secret'
+              env:
+                SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+              inputs:
+                azureSubscription: ${{ variables.serviceConnectionName }}
+                scriptType: 'pscore'
+                scriptLocation: 'scriptPath'
+                scriptPath: '$(Pipeline.Workspace)/_build/scripts/SetPipelineVariableFromKeyvaultSecret.ps1'        
+                ScriptArguments: >
+                  -keyVaultName "$(Invictus.Installation.KeyVault.Name)"
+                  -secretName "$(Invictus.Dashboard.Aad.ClientSecret.SecretName)"
+                  -pipelineVariableName "aadDashboardClientSecret"
+
+            - task: AzureCLI@2
+              displayName: 'Install Dashboard'
+              env:
+                SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+              inputs:
+                azureSubscription: ${{ variables.serviceConnectionName }}
+                scriptType: 'pscore'
+                scriptLocation: 'scriptPath'
+                ScriptPath: '$(Pipeline.Workspace)/_build/dashboard-v2/Deploy.ps1'
+                ScriptArguments: >
+                  -version ${{parameters.Version}}
+                  -location "$(Invictus.Location)"
+                  -useBeta ${{parameters.UseBeta}}
+                  -acrPath "invictusreleases.azurecr.io"
+                  -acrUsername "$(Invictus.Acr.Username)"
+                  -acrPassword "$(acrPassword)"
+                  -resourcePrefix "$(Invictus.ResourcePrefix)"
+                  -artifactsPath "$(Pipeline.Workspace)/_build/dashboard-v2"
+                  -resourceGroupName "$(Invictus.ResourceGroup.Name)"
+                  -resourceGroupLocation "$(Invictus.Location)"
+                  -variableGroupName "$(Invictus.DevOps.VariableGroups.Outputs)"
+                  -devOpsObjectId "$(Invictus.DevOps.ObjectId)"
+                  -isAdDisabled $(Invictus.Resources.Dashboard.IsAdDisabled)
+                  -azureActiveDirectoryClientId "$(Invictus.Dashboard.Aad.ClientId)"
+                  -azureActiveDirectoryTenantId "$(Invictus.Dashboard.Aad.TenantId)"
+                  -azureActiveDirectoryClientSecret "$(aadDashboardClientSecret)"
+                  -azureActiveDirectoryAudience "$(Invictus.Dashboard.Aad.Audience)"
+                  -identityProviderApplicationId "$(Invictus.IdentityProvider.ApplicationId)"
+                  -identityProviderClientSecret "$(identityProviderClientSecret)"
+                  -performSqlDataMigration $(Invictus.Installation.Migration.PerformSqlDataMigration)
+                  -containerAppsEnvironmentName "$(Invictus.Resources.ContainerAppEnvironment.Name)"
+                  -containerAppsEnvironmentLocation "$(Invictus.Resources.ContainerAppEnvironment.Location)"
+                  -logAnalyticsWorkspaceAppInsightsName "$(Invictus.Resources.LogAnalyticsWorkspace.AppInsights.Name)"
+                  -logAnalyticsworkspaceNamelaV2 "$(Invictus.Resources.LogAnalyticsWorkspace.LogicApps.Name)"
+                  -invictusUserManagedIdentityName "$(Invictus.Resources.InvictusUserManagedIdentity.Name)"
+                  -acaIdentityName "$(Invictus.Resources.ContainerAppIdentity.Name)"
+                  -enableVnetSupport $(Invictus.Vnet.Enable)
+                  -vnetResourceGroupName "$(Invictus.Vnet.ResourceGroup.Name)"
+                  -vnetName "$(Invictus.Vnet.Name)"
+                  -privateEndpointSubnetName "$(Invictus.Vnet.Subnet.PrivateEndpoints.Name)"
+                  -containerAppEnvironmentSubnetName "$(Invictus.Vnet.Subnet.ContainerAppEnvironment.Name)"
+                  -caeVnetInfraRgName "$(Invictus.Resources.ContainerAppEnvironment.InfraResourceGroup.Name)"
+                  -dnsZoneSubscriptionId "$(Invictus.Vnet.PrivateDnsZones.Subscription.Id)"
+                  -dnsZoneResourceGroupName "$(Invictus.Vnet.PrivateDnsZones.ResourceGroup.Name)"
+                  -invictusDashboardWebAppName "$(Invictus.Resources.Dashboard.WebApp.Name)"
+                  -invictusDashboardGatewayFunctionName "$(Invictus.Resources.Dashboard.GatewayFunction.Name)"
+                  -invictusImportJobFunctionName "$(Invictus.Resources.ImportJob.Name)"
+                  -invictusCacheImportJobFunctionName "$(Invictus.Resources.CacheImportJob.Name)"
+                  -invictusStoreImportJobFunctionName "$(Invictus.Resources.StoreImportJob.Name)"
+                  -invictusFlowHandlerFunctionName "$(Invictus.Resources.FlowHandlerJob.Name)"
+                  -invictusGenericReceiverFunctionName "$(Invictus.Resources.GenericReceiver.Name)"
+                  -invictusHttpReceiverFunctionName "$(Invictus.Resources.HttpReceiver.Name)"
+                  -invictusDatabaseManagerFunctionName "$(Invictus.Resources.DatabaseManager.Name)"
+                  -invictusDataFactoryReceiverFunctionName "$(Invictus.Resources.DataFactoryReceiver.Name)"
+                  -cosmosAccountName "$(Invictus.Resources.CosmosDb.AccountName)"
+                  -cosmosDatabaseName "$(Invictus.Resources.CosmosDb.DashboardDbName)"
+                  -isProvisionedCosmos $(Invictus.Resources.CosmosDb.IsProvisioned)
+                  -flowDataTTLInDays $(Invictus.Resources.CosmosDb.DataRetention.Days)
+                  -cosmosDbSubnets @("$(Invictus.Vnet.Subnet.PrivateEndpoints.Name)","$(Invictus.Vnet.Subnet.ContainerAppEnvironment.Name)")
+                  -storageAccountName "$(Invictus.Resources.StorageAccount.Name)"
+                  -storageAccountSubnets @("$(Invictus.Vnet.Subnet.PrivateEndpoints.Name)","$(Invictus.Vnet.Subnet.ContainerAppEnvironment.Name)")
+                  -disableStorageAccountPublicNetworkAccess $(Invictus.Resources.StorageAccount.DisablePublicNetworkAccess)
+                  -serviceBusNamespaceName "$(Invictus.Resources.ServiceBus.Namespace.Name)"
+                  -serviceBusSkuName "$(Invictus.Resources.ServiceBus.Sku)"
+                  -serviceBusSubnets @("$(Invictus.Vnet.Subnet.PrivateEndpoints.Name)","$(Invictus.Vnet.Subnet.ContainerAppEnvironment.Name)")
+                  -eventHubNamespaceName "$(Invictus.Resources.EventHub.Namespace.Name)"
+                  -eventHubSkuName "$(Invictus.Resources.EventHub.Namespace.Sku.Name)"
+                  -eventHubSkuTier "$(Invictus.Resources.EventHub.Namespace.Sku.Tier)"
+                  -eventHubSkuCapacity $(Invictus.Resources.EventHub.Namespace.Sku.Capacity)
+                  -eventHubAutoInflate $(Invictus.Resources.EventHub.AutoInflate)
+                  -eventHubMaxThroughputUnits $(Invictus.Resources.EventHub.EventHubMaxThroughputUnits)
+                  -eventHubMessageRetentionInDays $(Invictus.Resources.EventHub.MessageRetentionInDays)
+                  -eventHubSubnets @("$(Invictus.Vnet.Subnet.PrivateEndpoints.Name)","$(Invictus.Vnet.Subnet.ContainerAppEnvironment.Name)")
+                  -eventHubName "$(Invictus.Resources.EventHub.Name)"
+                  -eventHubNameV2 "$(Invictus.Resources.EventHub.V2.Name)"
+                  -workflowEventHubName "$(Invictus.Resources.EventHub.Workflow.Name)"
+                  -dataMergeWorkflowEventHubName "$(Invictus.Resources.EventHub.DatamergeWorkflow.Name)"
+                  -sideTasksWorkflowEventHubName "$(Invictus.Resources.EventHub.SidetasksWorkflow.Name)"
+                  -dataFactoryEventHubName "$(Invictus.Resources.EventHub.DataFactory.Name)"
+                  -genericEventHubName "$(Invictus.Resources.EventHub.Generic.Name)"
+                  -keyVaultName "$(Invictus.Resources.KeyVault.Name)"
+                  -keyVaultSubnets @("$(Invictus.Vnet.Subnet.PrivateEndpoints.Name)","$(Invictus.Vnet.Subnet.ContainerAppEnvironment.Name)")
+                  -keyVaultEnablePurgeProtection $(Invictus.Resources.KeyVault.EnablePurgeProtection)
+                  -appInsightsName "$(Invictus.Resources.AppInsights.Name)"
+                  -alertingAppInsightsName "$(Invictus.Resources.AppInsights.Alerting.Name)"
+                  -importjobAppInsightsName "$(Invictus.Resources.AppInsights.ImportJob.Name)"
+                  -appInsightsSamplingPercentage $(Invictus.Resources.AppInsights.SamplingPercentage)
+                  -importJobAppInsightsSamplingPercentage $(Invictus.Resources.AppInsights.ImportJob.SamplingPercentage)
+                  -translateBicepOutput 0
+                 

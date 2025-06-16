@@ -1,0 +1,51 @@
+name: Update.Container.Agent.$(Rev:rrr) 
+
+pr: none
+
+trigger: none
+
+parameters:
+- name: loggingLevel
+  displayName: Logging Level
+  type: string
+  default: Pipeline
+  values:
+  - Pipeline
+  - Debug
+
+## Global variables
+variables:
+- template: ../../variables/invictus-shared.yml
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+#Just DEV for now, feel free to add other environments as needed
+stages: 
+- stage: Deploy_DEV
+  displayName: 'Deploy to Dev'
+  variables:
+    - group: Devops.Aca.Agents  # Used to store PAT
+    - template: ../../variables/invictus-shared.yml
+    - template: ../../variables/invictus-dev.yml
+  jobs:
+  - job: Deploy_ACA_Agents
+    steps:
+    - task: AzureCLI@2
+      inputs:
+        azureSubscription: ${{ variables.serviceConnectionName }}
+        scriptType: 'pscore'
+        scriptLocation: 'scriptPath'
+        scriptPath: 'invictus/azuredevops/pipelines/ACA-Agent/New-ADOAgent.ps1'
+        failOnStandardError: false
+        arguments: >- 
+            -OrganizationUrl "$(Devops.Url)" 
+            -RESOURCE_GROUP "$(Invictus.SelfHostedAgents.ResourceGroup.Name)" 
+            -Company "$(CompanyName)"
+            -Environment "$(Invictus.Environment.Shortname)" 
+            -PAT "$(ACA.PersonalAccessToken)"
+            -SubscriptionId "$(Invictus.Vnet.Subscription.Id)"
+            -vnetResourceGroup "$(Invictus.Vnet.ResourceGroup.Name)"
+            -vnetName "$(Invictus.Vnet.Name)"
+            -subnetName "$(Invictus.Vnet.Subnet.DevOpsAgents.Name)"
+            -location "$(Invictus.Location)"

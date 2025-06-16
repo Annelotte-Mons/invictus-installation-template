@@ -1,0 +1,32 @@
+pr: none
+
+trigger: none
+
+resources:
+  pipelines:
+  - pipeline: _build
+    source: 'Invictus.Dashboard.CI'  # Name of the CI pipeline that builds the package
+
+parameters:
+  - name: "Version"
+    type: string
+    default: "latest"
+  - name: "UseBeta"
+    type: string
+    default: "$false"
+
+## Global variables
+variables:
+- name: DevOpsPipelineRunUrl
+  value: $(System.CollectionUri)$(System.TeamProject)/_build/results?buildId=$(Build.BuildId)
+- name: Pipeline.Version
+  value: $(Artifact.Version)-$(Build.BuildNumber) 
+- name: Artifact.Version
+  value: $(resources.pipeline.package_build.runName)
+- template: ../../../variables/invictus-shared.yml
+
+stages:
+- template: release-template.yml
+  parameters:
+    Version: ${{ parameters.Version }}
+    UseBeta: ${{ parameters.UseBeta }}

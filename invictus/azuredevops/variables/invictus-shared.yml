@@ -1,0 +1,183 @@
+variables:
+- name: CompanyName
+  value: '' # The (abbreviation) name of your company, used as a prefix for resource names
+- name: ProjectName
+  value: 'invictus'
+
+- name: azureDevOpsEnvironment
+  value: '$(ProjectName)-$(Invictus.Environment.Shortname)'
+
+
+
+# Invictus shared variables
+- name: Invictus.ResourcePrefix
+  value: '$(CompanyName)-$(Invictus.EnvironmentPrefix)-invictus'
+- name: Invictus.ResourcePrefix.NoDelimiter
+  value: '$(CompanyName)$(Invictus.EnvironmentPrefix)invictus'
+- name: Invictus.ResourceGroup.Name
+  value: '$(CompanyName)-$(Invictus.EnvironmentPrefix)-$(ProjectName)-rg'
+- name: Invictus.Location
+  value: 'westeurope' # The Azure region where the Invictus resources will be deployed, change if needed
+- name: Invictus.Installation.KeyVault.Name
+  value: '$(Invictus.ResourcePrefix)-install' # The name of the Key Vault used for storing installation secrets, deployed as prerequisite
+- name: Invictus.Installation.StorageAccount.Name
+  value: 'invictusreleases'
+
+- name: Invictus.SelfHostedAgents.ResourceGroup.Name
+  value: '$(CompanyName)-$(Invictus.EnvironmentPrefix)-$(ProjectName)-agents-rg' # The resource group for self-hosted agents, change if needed
+
+- name: Invictus.DevOps.VariableGroups.Outputs
+  value: 'Invictus.Outputs.$(Invictus.Environment.Shortname)' # The name of the variable group in Azure DevOps that contains outputs from the Invictus installation, change if needed
+
+- name: Invictus.Installation.Migration.PerformSqlDataMigration
+  value: 0
+- name: Invictus.Installation.Framework.SasToken.SecretName
+  value: ''
+- name: Invictus.Installation.Dashboard.SasToken.SecretName
+  value: ''
+- name: Invictus.Acr.Username
+  value: ''
+- name: Invictus.Acr.Password.SecretName
+  value: ''
+
+# VNET settings
+- name: Invictus.Vnet.Enable
+  value: 1  # 1 to enable VNET integration, 0 to disable (if disabled, all below settings can be removed)
+- name: Invictus.Vnet.ResourceGroup.Name
+  value: '$(CompanyName)-$(Invictus.EnvironmentPrefix)-$(ProjectName)-networking-rg' # The resource group for the Invictus VNET, change if needed
+- name: Invictus.Vnet.Name
+  value: '$(Invictus.ResourcePrefix)-vnet' # The name of the Invictus VNET
+- name: Invictus.Vnet.Subnet.PrivateEndpoints.Name
+  value: 'private-endpoints-snet'
+- name: Invictus.Vnet.Subnet.ContainerAppEnvironment.Name
+  value: 'container-apps-snet'
+- name: Invictus.Vnet.Subnet.DevOpsAgents.Name
+  value: 'devops-aca-snet' # The name of the subnet for self-hosted agents in the Invictus VNET
+- name: Invictus.Vnet.Nsg.Name
+  value: '$(Invictus.ResourcePrefix)-nsg' # The name of the Network Security Group (NSG) for the Invictus VNET
+- name: Invictus.Vnet.RouteTable.Name
+  value: '$(Invictus.ResourcePrefix)-rt' # The name of the route table for the Invictus VNET
+
+
+# Resources configuration
+- name: Invictus.Resources.CosmosDb.AccountName
+  value: '$(Invictus.ResourcePrefix)-cosmosdb'
+- name: Invictus.Resources.CosmosDb.DashboardDbName
+  value: 'InvictusDashboard'
+
+
+- name: Invictus.Resources.StorageAccount.Name
+  value: '$(Invictus.ResourcePrefix.NoDelimiter)stor'
+- name: Invictus.Resources.StorageAccount.DisablePublicNetworkAccess
+  value: $true 
+
+
+- name: Invictus.Resources.Dashboard.IsAdDisabled
+  value: 0  # AD only for dashboard
+- name: Invictus.Resources.Dashboard.WebApp.Name
+  value: '$(Invictus.ResourcePrefix)-dashboard-v2'
+- name: Invictus.Resources.Dashboard.GatewayFunction.Name
+  value: '$(Invictus.ResourcePrefix)-dashboardgateway'
+
+- name: Invictus.Resources.AppInsights.Name
+  value: '$(Invictus.ResourcePrefix)-appins'
+- name: Invictus.Resources.AppInsights.SamplingPercentage
+  value: 1
+- name: Invictus.Resources.AppInsights.Alerting.Name
+  value: '$(Invictus.ResourcePrefix)-alertingappins'
+- name: Invictus.Resources.AppInsights.ImportJob.Name
+  value: '$(Invictus.ResourcePrefix)-importjobappins'
+- name: Invictus.Resources.AppInsights.ImportJob.SamplingPercentage
+  value: 1
+
+- name: Invictus.Resources.ServiceBus.Namespace.Name
+  value: '$(Invictus.ResourcePrefix)-sbs'
+- name: Invictus.Resources.ServiceBus.Sku
+  value: 'Premium'  # !! Premium SKU required for VNET integration (and for dedicated resources PRD)
+  # !!!! Change to 'Standard' if you want to use the Standard SKU (no VNET integration, shared resources)
+  # Or you will burn through a lot of cash :)
+
+
+- name: Invictus.Resources.KeyVault.Name
+  value: '$(Invictus.ResourcePrefix)-vlt'
+- name: Invictus.Resources.KeyVault.EnablePurgeProtection
+  value: $true
+
+
+- name: Invictus.Resources.EventHub.Namespace.Name
+  value: '$(Invictus.ResourcePrefix)-evnm'
+- name: Invictus.Resources.EventHub.Namespace.Sku.Name
+  value: 'Standard'
+- name: Invictus.Resources.EventHub.Namespace.Sku.Tier
+  value: 'Standard'
+- name: Invictus.Resources.EventHub.Namespace.Sku.Capacity
+  value: 1
+- name: Invictus.Resources.EventHub.Name
+  value: '$(Invictus.ResourcePrefix)-evhb'
+- name: Invictus.Resources.EventHub.V2.Name
+  value: '$(Invictus.ResourcePrefix)-evhb-v2'
+- name: Invictus.Resources.EventHub.Workflow.Name
+  value: '$(Invictus.ResourcePrefix)-workflow-evhb'
+- name: Invictus.Resources.EventHub.DatamergeWorkflow.Name
+  value: '$(Invictus.ResourcePrefix)-mergeddata-evhb'
+- name: Invictus.Resources.EventHub.SidetasksWorkflow.Name
+  value: '$(Invictus.ResourcePrefix)-sidetasks-evhb'
+- name: Invictus.Resources.EventHub.DataFactory.Name
+  value: '$(Invictus.ResourcePrefix)-df-evhb'
+- name: Invictus.Resources.EventHub.Generic.Name
+  value: '$(Invictus.ResourcePrefix)-genericreceiver-evhb'
+- name: Invictus.Resources.EventHub.AutoInflate
+  value: $false
+- name: Invictus.Resources.EventHub.EventHubMaxThroughputUnits
+  value: 0
+- name: Invictus.Resources.EventHub.MessageRetentionInDays
+  value: 1
+
+- name: Invictus.Resources.ContainerAppEnvironment.InfraResourceGroup.Name
+  value: '$(Invictus.ResourceGroup.Name)-cae' # The resource group for the Container Apps Environment (CAE) infrastructure
+- name: Invictus.Resources.ContainerAppEnvironment.Location
+  value: '$(Invictus.Location)' # The location for the Container Apps Environment (CAE)
+- name: Invictus.Resources.ContainerAppEnvironment.Name
+  value: '$(Invictus.ResourcePrefix)-cae' # The name of the Container Apps Environment (CAE)
+- name: Invictus.Resources.LogAnalyticsWorkspace.LogicApps.Name
+  value: '$(Invictus.ResourcePrefix)-logs'
+- name: Invictus.Resources.LogAnalyticsWorkspace.AppInsights.Name
+  value: '$(Invictus.ResourcePrefix)-logs-appinsights'
+- name: Invictus.Resources.InvictusUserManagedIdentity.Name
+  value: '$(Invictus.ResourcePrefix)-managed-identity'
+- name: Invictus.Resources.ContainerAppIdentity.Name
+  value: '$(Invictus.ResourcePrefix)-aca-identity'
+
+
+- name: Invictus.Resources.TimeSequencer.Name
+  value: '$(Invictus.ResourcePrefix)-timeseq'
+- name: Invictus.Resources.SequenceController.Name
+  value: '$(Invictus.ResourcePrefix)-seqcontroller'
+- name: Invictus.Resources.XmlJsonConverter.Name
+  value: '$(Invictus.ResourcePrefix)-xmljsonconv'
+- name: Invictus.Resources.XsdValidator.Name
+  value: '$(Invictus.ResourcePrefix)-xsdvalidator'
+- name: Invictus.Resources.RegexTranslator.Name
+  value: '$(Invictus.ResourcePrefix)-regextranslator'
+- name: Invictus.Resources.TranscoV2.Name
+  value: '$(Invictus.ResourcePrefix)-transco-v2'
+- name: Invictus.Resources.PubSubV2.Name
+  value: '$(Invictus.ResourcePrefix)-pubsub-v2'
+- name: Invictus.Resources.ExceptionHandler.Name
+  value: '$(Invictus.ResourcePrefix)-exceptionhandler'
+- name: Invictus.Resources.ImportJob.Name
+  value: '$(Invictus.ResourcePrefix)-importjob'
+- name: Invictus.Resources.CacheImportJob.Name
+  value: '$(Invictus.ResourcePrefix)-cacheimportjob'
+- name: Invictus.Resources.StoreImportJob.Name
+  value: '$(Invictus.ResourcePrefix)-storeimportjob'
+- name: Invictus.Resources.FlowHandlerJob.Name
+  value: '$(Invictus.ResourcePrefix)-flowhandlerjob'
+- name: Invictus.Resources.GenericReceiver.Name
+  value: '$(Invictus.ResourcePrefix)-genericreceiver'
+- name: Invictus.Resources.HttpReceiver.Name
+  value: '$(Invictus.ResourcePrefix)-httpreceiver'
+- name: Invictus.Resources.DatabaseManager.Name
+  value: '$(Invictus.ResourcePrefix)-db-storeimportjob'
+- name: Invictus.Resources.DataFactoryReceiver.Name
+  value: '$(Invictus.ResourcePrefix)-dfreceiver'

@@ -1,0 +1,72 @@
+name: AIS.Invictus.Installation.Dashboard.CI.$(rev:.r)
+
+trigger: none
+pr: none
+
+parameters:
+- name: Version
+  displayName: Invictus Version
+  type: string
+  default: '*'
+- name: useBeta
+  displayName: Use Beta
+  type: string
+  default: $True
+
+pool:
+  vmImage: 'windows-latest'
+
+stages:
+- stage: Package
+  displayName: Package
+  dependsOn: []
+  variables:
+  - template: ../../../variables/invictus-shared.yml
+  - template: ../../../variables/invictus-dev.yml  # Installation secrets in DEV (SAS token etc)
+  jobs:
+  - job: publish
+    displayName: Build and Publish Dashboard
+    steps:
+    - checkout: self
+      clean: true
+      persistCredentials: true
+
+    - task: AzureCLI@2
+      displayName: 'Retrieve KeyVault Secret: SAS token'
+      env:
+        SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+      inputs:
+        azureSubscription: ${{ variables.serviceConnectionName }}
+        scriptType: 'pscore'
+        scriptLocation: 'scriptPath'
+        scriptPath: '$(Build.SourcesDirectory)/invictus/azuredevops/scripts/SetPipelineVariableFromKeyvaultSecret.ps1'        
+        ScriptArguments: >
+          -keyVaultName "$(Invictus.Installation.KeyVault.Name)"
+          -secretName "$(Invictus.Installation.Dashboard.SasToken.SecretName)"
+          -pipelineVariableName "dashboardSasToken"
+
+    - task: PublishPipelineArtifact@1
+      displayName: 'Publish Scripts'
+      inputs:
+        TargetPath: '$(Build.SourcesDirectory)/invictus/azuredevops/scripts'
+        ArtifactName: 'scripts'
+
+    - task: PowerShell@2
+      displayName: 'Pull Sources'
+      inputs:
+        targetType: filePath
+        filePath: '$(Build.SourcesDirectory)/invictus/azuredevops/scripts/Invictus-GetSources.ps1'
+        arguments: >
+          -StorageAccountName "$(Invictus.Installation.StorageAccount.Name)"
+          -StorageSasToken "$(dashboardSasToken)"
+          -StorageContainerName "dashboard-v2"
+          -SaveLocation "$(Build.ArtifactStagingDirectory)"
+          -UseBeta ${{parameters.useBeta}}
+          -Version ${{ parameters.version }}    
+                    
+    - task: PublishPipelineArtifact@1
+      displayName: 'Publish Dashboard artifacts'
+      inputs:
+        TargetPath: $(Build.ArtifactStagingDirectory)
+        ArtifactName: 'dashboard-v2'
+        publishLocation: 'pipeline'
