@@ -1,0 +1,8 @@
+## TODO: 
+## Write your own YAML pipeline for Invictus prerequisites, bicep can be found in the invictus/azuredevops/bicep folder
+
+## Only needed for: 
+## - Networking
+## - Installation KeyVault (instead of using DevOps variable group secrets)
+
+## If you don't need either of these, this can be skipped completely.
